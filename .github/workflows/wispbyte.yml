@@ -1,0 +1,71 @@
+name: Wispbyte 自动重启服务
+
+on:
+  schedule:
+    # 每周日 UTC 02:00（北京时间 10:00）自动运行
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      accounts:
+        description: '指定运行邮箱（多个用逗号分隔，留空运行全部）'
+        required: false
+        default: ''
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  restart:
+    name: 执行自动化重启任务
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出仓库代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装系统底层依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg unzip curl gnupg
+          wget -q -O /tmp/google-chrome-stable_current_amd64.deb \
+            https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo dpkg -i /tmp/google-chrome-stable_current_amd64.deb || sudo apt-get install -f -y
+
+      - name: 安装 Python 扩展包
+        run: |
+          python -m pip install --upgrade pip
+          pip install seleniumbase pyvirtualdisplay requests
+
+      - name: 启动 WARP 网络代理
+        uses: fscarmen/warp-on-actions@v1.3
+        with:
+          stack: dual
+          mode: client
+
+      - name: 执行主重启脚本
+        env:
+          WISPBYTE_1: ${{ secrets.WISPBYTE_1 }}
+          WISPBYTE_2: ${{ secrets.WISPBYTE_2 }}
+          WISPBYTE_3: ${{ secrets.WISPBYTE_3 }}
+          WISPBYTE_4: ${{ secrets.WISPBYTE_4 }}
+          WISPBYTE_5: ${{ secrets.WISPBYTE_5 }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          INPUT_ACCOUNTS: ${{ inputs.accounts }}
+        run: python -u scripts/main.py
+
+      - name: 清理历史 Workflow 记录
+        if: always()
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: ${{ github.workflow }}
+          retain_days: 0
+          keep_minimum_runs: 2
