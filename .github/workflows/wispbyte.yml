@@ -2,8 +2,8 @@ name: Wispbyte 自动重启服务
 
 on:
   schedule:
-    # 每周日 UTC 02:00（北京时间 10:00）自动运行
-    - cron: '0 2 * * 0'
+    # 每日 UTC 02:00（北京时间 10:00）自动运行
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       accounts:
